@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import Fuse from "fuse.js";
 import {
   LineChart,
   Line,
@@ -65,14 +66,38 @@ export default function Home() {
     loadProducts();
   }, []);
 
+  const fuse = useMemo(
+    () =>
+      new Fuse(products, {
+        keys: ["product_name", "set_name"],
+        threshold: 0.4,
+        useExtendedSearch: true,
+      }),
+    [products]
+  );
+
   const filtered = useMemo(() => {
-    return products.filter((p) => {
-      if (selectedSet !== "All" && p.set_name !== selectedSet) return false;
-      if (query && !p.product_name.toLowerCase().includes(query.toLowerCase()))
-        return false;
-      return true;
-    });
-  }, [products, selectedSet, query]);
+    let results = products;
+    if (selectedSet !== "All") {
+      results = results.filter((p) => p.set_name === selectedSet);
+    }
+    if (query) {
+      const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const fuseResults = fuse.search(query).map((r) => r.item);
+      const setFiltered = fuseResults.filter(
+        (p) => selectedSet === "All" || p.set_name === selectedSet
+      );
+      setFiltered.sort((a, b) => {
+        const aName = a.product_name.toLowerCase();
+        const bName = b.product_name.toLowerCase();
+        const aMatches = terms.filter((t) => aName.includes(t)).length;
+        const bMatches = terms.filter((t) => bName.includes(t)).length;
+        return bMatches - aMatches;
+      });
+      results = setFiltered;
+    }
+    return results;
+  }, [products, selectedSet, query, fuse]);
 
   async function selectProduct(product: Product) {
     setSelected(product);
