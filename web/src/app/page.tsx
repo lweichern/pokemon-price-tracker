@@ -35,6 +35,7 @@ export default function Home() {
   const [prices, setPrices] = useState<PricePoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadProducts() {
@@ -61,6 +62,15 @@ export default function Home() {
       setProducts(allData);
       const uniqueSets = [...new Set(allData.map((p) => p.set_name))].sort();
       setSets(uniqueSets);
+
+      const { data: latest } = await supabase
+        .from("price_history")
+        .select("created_at")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      if (latest) setLastUpdated(latest.created_at);
+
       setLoading(false);
     }
     loadProducts();
@@ -119,6 +129,16 @@ export default function Home() {
       <h1 className="text-3xl font-bold mb-2">Pokemon Price Tracker</h1>
       <p className="text-zinc-400 mb-8">
         {products.length} sealed products tracked in MYR
+        {lastUpdated && (
+          <span className="ml-2 text-zinc-600">
+            · Last updated{" "}
+            {new Date(lastUpdated).toLocaleString("en-MY", {
+              timeZone: "Asia/Kuala_Lumpur",
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </span>
+        )}
       </p>
 
       {selected && (

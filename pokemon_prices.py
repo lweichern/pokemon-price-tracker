@@ -51,6 +51,14 @@ ERA_PREFIXES = [
     "SWSH",
     "SV",
     "ME",
+    "Crown Zenith",
+    "Celebrations",
+    "Shining Fates",
+    "Hidden Fates",
+    "Pokemon GO",
+    "Trick or Trade",
+    "Detective Pikachu",
+    "Champions Path",
 ]
 
 
