@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest web --ts --tailwind --eslint --app --src-dir --no-import-alias --use-npm)",
+      "Bash(npm install *)",
+      "Bash(curl -s -X POST https://uinlttqyqckfcclnznim.supabase.co/rest/v1/rpc -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbmx0dHF5cWNrZmNjbG56bmltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzQxNzYsImV4cCI6MjA5MjM1MDE3Nn0.pU13mTDuJnm68jFRiP_O90nRivGD47yAXXz7Ml9AHfI' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpbmx0dHF5cWNrZmNjbG56bmltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3NzQxNzYsImV4cCI6MjA5MjM1MDE3Nn0.pU13mTDuJnm68jFRiP_O90nRivGD47yAXXz7Ml9AHfI' -H 'Content-Type: application/json')"
+    ]
+  }
+}
