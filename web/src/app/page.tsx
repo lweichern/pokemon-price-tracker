@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import Fuse from "fuse.js";
 import {
@@ -31,11 +31,13 @@ export default function Home() {
   const [sets, setSets] = useState<string[]>([]);
   const [selectedSet, setSelectedSet] = useState("All");
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
   const [selected, setSelected] = useState<Product | null>(null);
   const [prices, setPrices] = useState<PricePoint[]>([]);
-  const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const scrollRef = useRef(0);
 
   useEffect(() => {
     async function loadProducts() {
@@ -109,65 +111,116 @@ export default function Home() {
     return results;
   }, [products, selectedSet, query, fuse]);
 
-  async function selectProduct(product: Product) {
-    setSelected(product);
-    setChartLoading(true);
+  async function openProduct(product: Product) {
+    scrollRef.current = window.scrollY;
+    window.history.pushState(
+      null,
+      "",
+      `?set=${encodeURIComponent(product.set_name)}&name=${encodeURIComponent(product.product_name)}`
+    );
 
-    const { data } = await supabase
-      .from("price_history")
-      .select("date, market_myr")
-      .eq("set_name", product.set_name)
-      .eq("product_name", product.product_name)
-      .order("date");
+    const [{ data: history }, { data: latest }] = await Promise.all([
+      supabase
+        .from("price_history")
+        .select("date, market_myr")
+        .eq("set_name", product.set_name)
+        .eq("product_name", product.product_name)
+        .order("date"),
+      product.market_myr
+        ? Promise.resolve({ data: product })
+        : supabase
+            .from("price_history")
+            .select("set_name, product_name, market_myr, url, image_url")
+            .eq("set_name", product.set_name)
+            .eq("product_name", product.product_name)
+            .order("date", { ascending: false })
+            .limit(1)
+            .single(),
+    ]);
 
-    if (data) setPrices(data);
+    if (history) setPrices(history);
+    if (latest) setSelected(latest as Product);
+    else setSelected(product);
     setChartLoading(false);
+    requestAnimationFrame(() => window.scrollTo(0, 0));
   }
 
-  return (
-    <main className="max-w-6xl mx-auto px-4 py-12">
-      <h1 className="text-3xl font-bold mb-2">Pokemon Price Tracker</h1>
-      <p className="text-zinc-400 mb-8">
-        {products.length} sealed products tracked in MYR
-        {lastUpdated && (
-          <span className="ml-2 text-zinc-600">
-            · Last updated{" "}
-            {new Date(lastUpdated).toLocaleString("en-MY", {
-              timeZone: "Asia/Kuala_Lumpur",
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}
-          </span>
-        )}
-      </p>
+  function goBack() {
+    setSelected(null);
+    window.history.pushState(null, "", "/");
+    requestAnimationFrame(() => {
+      window.scrollTo(0, scrollRef.current);
+    });
+  }
 
-      {selected && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-8">
-          <div className="flex items-start gap-4 mb-4">
-            {selected.image_url && (
-              <img
-                src={selected.image_url}
-                alt={selected.product_name}
-                className="w-24 h-24 object-contain rounded-lg bg-zinc-800 p-1"
-              />
-            )}
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold">
-                {selected.product_name}
-              </h2>
-              <p className="text-sm text-zinc-500">{selected.set_name}</p>
-              <p className="text-2xl font-bold text-amber-400 mt-2">
-                RM {selected.market_myr.toFixed(2)}
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const set = params.get("set");
+    const name = params.get("name");
+    if (set && name) {
+      openProduct({
+        set_name: set,
+        product_name: name,
+        market_myr: 0,
+        url: "",
+        image_url: "",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (selected) {
+    const priceChange =
+      prices.length >= 2
+        ? prices[prices.length - 1].market_myr - prices[0].market_myr
+        : null;
+
+    return (
+      <main className="max-w-4xl mx-auto px-4 py-12">
+        <button
+          onClick={goBack}
+          className="text-zinc-500 hover:text-zinc-300 text-sm mb-6 block"
+        >
+          &larr; Back to all products
+        </button>
+
+        <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6 mb-8">
+          {selected.image_url && (
+            <img
+              src={selected.image_url}
+              alt={selected.product_name}
+              className="w-48 h-48 object-contain rounded-lg bg-zinc-900 border border-zinc-800 p-2 shrink-0"
+            />
+          )}
+          <div className="text-center sm:text-left">
+            <h1 className="text-xl sm:text-2xl font-bold">{selected.product_name}</h1>
+            <p className="text-zinc-500 mt-1">{selected.set_name}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-amber-400 mt-3">
+              RM {selected.market_myr.toFixed(2)}
+            </p>
+            {priceChange !== null && (
+              <p
+                className={`text-sm mt-1 ${priceChange >= 0 ? "text-green-400" : "text-red-400"}`}
+              >
+                {priceChange >= 0 ? "+" : ""}
+                RM {priceChange.toFixed(2)} since first tracked
               </p>
-            </div>
-            <button
-              onClick={() => setSelected(null)}
-              className="text-zinc-500 hover:text-zinc-300 text-sm"
-            >
-              Close
-            </button>
+            )}
+            {selected.url && (
+              <a
+                href={selected.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-amber-400 hover:underline mt-3 inline-block"
+              >
+                View on TCGPlayer &rarr;
+              </a>
+            )}
           </div>
+        </div>
 
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+          <h2 className="text-lg font-semibold mb-4">Price History</h2>
           {chartLoading ? (
             <p className="text-zinc-500">Loading chart...</p>
           ) : prices.length < 2 ? (
@@ -176,7 +229,7 @@ export default function Home() {
               runs.
             </p>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={350}>
               <LineChart data={prices}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#333" />
                 <XAxis dataKey="date" stroke="#888" tick={{ fontSize: 12 }} />
@@ -210,7 +263,26 @@ export default function Home() {
             </ResponsiveContainer>
           )}
         </div>
-      )}
+      </main>
+    );
+  }
+
+  return (
+    <main className="max-w-6xl mx-auto px-4 py-12">
+      <h1 className="text-3xl font-bold mb-2">Pokemon Price Tracker</h1>
+      <p className="text-zinc-400 mb-8">
+        {products.length} sealed products tracked in MYR
+        {lastUpdated && (
+          <span className="ml-2 text-zinc-600">
+            · Last updated{" "}
+            {new Date(lastUpdated).toLocaleString("en-MY", {
+              timeZone: "Asia/Kuala_Lumpur",
+              dateStyle: "medium",
+              timeStyle: "short",
+            })}
+          </span>
+        )}
+      </p>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <input
@@ -245,7 +317,7 @@ export default function Home() {
             {filtered.map((p) => (
               <div
                 key={`${p.set_name}|${p.product_name}`}
-                onClick={() => selectProduct(p)}
+                onClick={() => openProduct(p)}
                 className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden hover:border-zinc-600 cursor-pointer transition-colors"
               >
                 <div className="aspect-square bg-zinc-800 flex items-center justify-center p-2">
