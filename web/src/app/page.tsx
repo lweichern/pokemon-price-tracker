@@ -147,8 +147,8 @@ export default function Home() {
                     borderRadius: "8px",
                   }}
                   labelStyle={{ color: "#888" }}
-                  formatter={(value: number) => [
-                    `RM ${value.toFixed(2)}`,
+                  formatter={(value: number | string) => [
+                    `RM ${Number(value).toFixed(2)}`,
                     "Market Price",
                   ]}
                 />
