@@ -147,7 +147,8 @@ export default function Home() {
                     borderRadius: "8px",
                   }}
                   labelStyle={{ color: "#888" }}
-                  formatter={(value: number | string) => [
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  formatter={(value: any) => [
                     `RM ${Number(value).toFixed(2)}`,
                     "Market Price",
                   ]}
