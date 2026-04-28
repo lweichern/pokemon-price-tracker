@@ -90,6 +90,7 @@ export default function Overview() {
   const [trendData, setTrendData] = useState<TrendPoint[]>([]);
   const [gainers, setGainers] = useState<TopMover[]>([]);
   const [losers, setLosers] = useState<TopMover[]>([]);
+  const [lastSynced, setLastSynced] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -102,6 +103,7 @@ export default function Overview() {
         trendRes,
         gainersRes,
         losersRes,
+        lastSyncRes,
       ] = await Promise.all([
         supabase
           .from("products")
@@ -131,6 +133,11 @@ export default function Overview() {
           .order("recorded_at"),
         supabase.from("top_gainers_7d").select("*").limit(5),
         supabase.from("top_losers_7d").select("*").limit(5),
+        supabase
+          .from("prices")
+          .select("recorded_at")
+          .order("recorded_at", { ascending: false })
+          .limit(1),
       ]);
 
       const metrics = metricsRes.data ?? [];
@@ -203,6 +210,9 @@ export default function Overview() {
       setTrendData(trendPoints);
       setGainers(((gainersRes.data as TopMover[]) ?? []).filter((g) => isTrackedSet(g.set_name)));
       setLosers(((losersRes.data as TopMover[]) ?? []).filter((l) => isTrackedSet(l.set_name)));
+      if (lastSyncRes.data?.[0]?.recorded_at) {
+        setLastSynced(lastSyncRes.data[0].recorded_at);
+      }
       setLoading(false);
     }
 
@@ -222,8 +232,24 @@ export default function Overview() {
   const fallingRatio = s.sentiment.total > 0 ? s.sentiment.falling / s.sentiment.total : 0;
   const stableRatio = s.sentiment.total > 0 ? s.sentiment.stable / s.sentiment.total : 0;
 
+  const syncDate = lastSynced
+    ? new Date(lastSynced).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      })
+    : null;
+
   return (
     <div className="space-y-6">
+      {syncDate && (
+        <p className="text-xs text-right" style={{ color: "#9ca3af" }}>
+          Last synced: {syncDate}
+        </p>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className={CARD_CLASS}>
           <p className="text-xs mb-1" style={{ color: "#9ca3af" }}>
