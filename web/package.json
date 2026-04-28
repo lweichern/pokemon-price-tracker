@@ -1,6 +1,6 @@
 {
-  "name": "web",
-  "version": "0.1.0",
+  "name": "tcg-intel",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,9 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@netlify/plugin-nextjs": "^5.15.9",
     "@supabase/supabase-js": "^2.104.0",
-    "fuse.js": "^7.3.0",
     "next": "16.2.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
