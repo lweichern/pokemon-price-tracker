@@ -234,6 +234,7 @@ def transform_product(product: dict) -> dict:
         "card_type": _ext_lookup(ext, "Card Type"),
         "hp": _ext_lookup(ext, "HP"),
         "stage": _ext_lookup(ext, "Stage"),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
