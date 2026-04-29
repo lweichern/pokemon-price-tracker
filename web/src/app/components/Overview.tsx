@@ -134,9 +134,9 @@ export default function Overview() {
         supabase.from("top_gainers_7d").select("*").limit(5),
         supabase.from("top_losers_7d").select("*").limit(5),
         supabase
-          .from("products")
-          .select("updated_at")
-          .order("updated_at", { ascending: false })
+          .from("sets")
+          .select("last_synced_at")
+          .order("last_synced_at", { ascending: false })
           .limit(1),
       ]);
 
@@ -210,8 +210,8 @@ export default function Overview() {
       setTrendData(trendPoints);
       setGainers(((gainersRes.data as TopMover[]) ?? []).filter((g) => isTrackedSet(g.set_name)));
       setLosers(((losersRes.data as TopMover[]) ?? []).filter((l) => isTrackedSet(l.set_name)));
-      if (lastSyncRes.data?.[0]?.updated_at) {
-        setLastSynced(lastSyncRes.data[0].updated_at);
+      if (lastSyncRes.data?.[0]?.last_synced_at) {
+        setLastSynced(lastSyncRes.data[0].last_synced_at);
       }
       setLoading(false);
     }

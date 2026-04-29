@@ -213,6 +213,7 @@ def transform_set(group: dict) -> dict:
         "is_supplemental": group.get("isSupplemental", False),
         "published_on": group.get("publishedOn"),
         "category_id": group.get("categoryId"),
+        "last_synced_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
