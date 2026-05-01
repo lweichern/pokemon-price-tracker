@@ -6,7 +6,8 @@ Fetches card/product data and prices from the TCGCSV API and upserts
 into Supabase.  Designed to run once daily via cron or CI.
 
 Usage:
-    python scraper.py                  # Full sync all sets
+    python scraper.py                  # Sync modern sets only (SWSH/SV)
+    python scraper.py --all-sets       # Sync ALL sets (legacy + modern)
     python scraper.py --sets-only      # Only sync sets metadata
     python scraper.py --set 3170       # Sync specific set by groupId
     python scraper.py --recent 5       # Only sync 5 most recent sets
@@ -83,6 +84,37 @@ _SEALED_SKIP_TOKENS = {
     "collection", "code", "card", "build", "battle", "starter",
     "theme", "etb",
 }
+
+
+# ---------------------------------------------------------------------------
+# Modern-set filter (mirrors web/src/lib/setFilter.ts)
+# ---------------------------------------------------------------------------
+
+_ERA_PREFIXES = ("SWSH", "SV", "Sword & Shield", "Scarlet & Violet")
+
+_SPECIAL_SETS = (
+    "Crown Zenith",
+    "Celebrations",
+    "Shining Fates",
+    "Hidden Fates",
+    "Pokemon GO",
+    "Pokémon GO",
+    "Trick or Trade",
+    "Detective Pikachu",
+    "Champion's Path",
+    "Champions Path",
+)
+
+
+def is_modern_set(set_name: str) -> bool:
+    """Return True if the set belongs to the SWSH/SV era or is a tracked special set."""
+    for prefix in _ERA_PREFIXES:
+        if set_name.startswith(prefix):
+            return True
+    for special in _SPECIAL_SETS:
+        if set_name.startswith(special):
+            return True
+    return False
 
 
 def extract_pokemon_name(name: str) -> str | None:
@@ -359,6 +391,11 @@ def main() -> None:
         action="store_true",
         help="Fetch data but don't write to the database",
     )
+    parser.add_argument(
+        "--all-sets",
+        action="store_true",
+        help="Scrape ALL sets instead of only modern (SWSH/SV) sets",
+    )
     args = parser.parse_args()
 
     # Validate env vars (unless dry-run)
@@ -410,15 +447,20 @@ def main() -> None:
                 print(f"\n  [!] Set with groupId={args.set} not found.")
                 sys.exit(1)
         elif args.recent is not None:
-            # Sort by publishedOn descending and take the N most recent
             sorted_groups = sorted(
                 groups,
                 key=lambda g: g.get("publishedOn", ""),
                 reverse=True,
             )
             target_groups = sorted_groups[: args.recent]
-        else:
+        elif args.all_sets:
             target_groups = groups
+        else:
+            target_groups = [
+                g for g in groups if is_modern_set(g.get("name", ""))
+            ]
+            print(f"  Filtered to {len(target_groups)} modern sets "
+                  f"(of {len(groups)} total). Use --all-sets to override.")
 
         # Step 4 -- fetch products + prices per set
         print()
@@ -440,6 +482,13 @@ def main() -> None:
         print("Step 5: Refreshing price metrics")
         print("=" * 60)
         _rpc(client, "refresh_price_metrics", args.dry_run)
+
+        # Step 6 -- prune old daily prices to weekly
+        print()
+        print("=" * 60)
+        print("Step 6: Pruning old prices to weekly snapshots")
+        print("=" * 60)
+        _rpc(client, "prune_old_prices", args.dry_run)
 
         # Summary
         print()

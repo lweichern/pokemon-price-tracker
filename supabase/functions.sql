@@ -231,3 +231,25 @@ JOIN sets s ON p.group_id = s.group_id
 WHERE p.is_sealed = TRUE
   AND pm.market_price IS NOT NULL
 ORDER BY pm.market_price DESC;
+
+-- 8. prune_old_prices() — weekly rollup for old data --------
+CREATE OR REPLACE FUNCTION prune_old_prices()
+RETURNS INTEGER AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    WITH keep_ids AS (
+        SELECT DISTINCT ON (product_id, sub_type_name, DATE_TRUNC('week', recorded_at))
+            id
+        FROM prices
+        WHERE recorded_at < CURRENT_DATE - INTERVAL '30 days'
+        ORDER BY product_id, sub_type_name, DATE_TRUNC('week', recorded_at), recorded_at DESC
+    )
+    DELETE FROM prices
+    WHERE recorded_at < CURRENT_DATE - INTERVAL '30 days'
+      AND id NOT IN (SELECT id FROM keep_ids);
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
